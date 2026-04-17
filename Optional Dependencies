@@ -1,5 +1,1 @@
-# For enhanced image analysis
-pip install Pillow numpy
 
-# For steghide detection (Windows)
-# Download from: https://steghide.sourceforge.net/
