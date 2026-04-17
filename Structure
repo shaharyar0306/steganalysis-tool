@@ -1,0 +1,15 @@
+steganalysis-tool/
+├── README.md
+├── LICENSE
+├── .gitignore
+├── requirements.txt
+├── steganalyzer.py
+├── screenshots/
+│   ├── gui_main.png
+│   ├── clean_result.png
+│   ├── stego_detected.png
+│   └── html_report.png
+├── reports/
+│   └── (sample reports)
+└── test_samples/
+    └── (sample test files)
