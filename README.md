@@ -1,155 +1,205 @@
-# Steganalysis Tool
+# 🔍 Steganalysis Tool
 
-A desktop and CLI tool for detecting steganography — hidden data embedded inside
-image, audio, video, and archive files. Built in Python with a Tkinter GUI and a
-clean, importable analysis engine.
+[![Python](https://img.shields.io/badge/Python-3.7%2B-blue.svg)](https://www.python.org/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey.svg)]()
 
-![Python](https://img.shields.io/badge/python-3.10%2B-blue)
-![License](https://img.shields.io/badge/license-MIT-green)
-![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)
+A Python tool with a **dark-themed GUI** that analyzes files for hidden steganographic data. Supports images, audio, video, and archives. Runs on Windows, Linux, and macOS.
 
 ---
 
-## Features
+## What It Does
 
-| Algorithm | Supported formats |
-|-----------|------------------|
-| Shannon entropy analysis | All |
-| EOF / appended-data detection | JPEG, PNG |
-| Binary signature scanning (RAR, ZIP, EXE) | All |
-| Stego-tool signature detection (steghide, OutGuess, F5, JSteg) | All |
-| Suspicious string extraction | All |
-| LSB (Least Significant Bit) steganalysis | PNG, BMP |
-| Steghide probe integration | JPEG, BMP, WAV |
+Loads a file and runs up to **9 detection checks** depending on the file type, then gives a **score out of 100** and a clear verdict: **CLEAN** or **STEGO DETECTED**.
 
-**Output:** suspicion score 0–100, plaintext report, and HTML report saved to `reports/`.
-
----
-
-## Quick start
-
-### Prerequisites
-
-```
-Python 3.10+
-Pillow           (LSB analysis)
-steghide         (optional – LSB probe via external tool)
-```
-
-### Install
-
-```bash
-git clone https://github.com/your-username/steganalysis-tool.git
-cd steganalysis-tool
-pip install -r requirements.txt
-```
-
-### Run (GUI)
-
-```bash
-python main.py
-```
-
-### Run (CLI)
-
-```bash
-# Analyse a single file
-python main.py suspicious_photo.jpg
-
-# Output raw JSON
-python main.py suspicious_photo.jpg --json
-
-# Exit code 0 = clean, 1 = stego detected, 2 = error
-echo $?
-```
-
----
-
-## Usage examples
-
-```bash
-# Analyse a JPEG
-python main.py holiday.jpg
-
-# Analyse a WAV file and get JSON
-python main.py recording.wav --json | python -m json.tool
-
-# Batch scan a folder (bash)
-for f in samples/*; do python main.py "$f"; done
-```
-
-### Importing as a library
-
-```python
-from stegdetector import StegDetector
-
-detector = StegDetector()
-result = detector.analyze("photo.jpg")
-
-print(result['score'])      # 0–100
-print(result['is_stego'])   # True / False
-print(result['reasons'])    # list of triggered findings
-```
-
----
-
-## Repository layout
-
-```
-steganalysis-tool/
-├── main.py           # CLI entry-point + GUI launcher
-├── stegdetector.py   # Core analysis engine (no UI dependency)
-├── gui.py            # Tkinter GUI (imports stegdetector)
-├── requirements.txt
-├── tests/
-│   └── test_stegdetector.py
-├── docs/
-│   └── algorithms.md
-├── assets/
-│   └── screenshot.png
-└── reports/          # auto-created at runtime
-```
+| Detection Check | What It Looks For |
+|---|---|
+| **Entropy Analysis** | Shannon entropy above normal thresholds for the file format |
+| **EOF / Appended Data** | Bytes hidden after JPEG `FF D9` or PNG `IEND` markers |
+| **RAR Signature** | RAR archive bytes (`Rar!\x1a\x07`) embedded inside the file |
+| **ZIP Signature** | ZIP/PK bytes (`PK\x03\x04`) embedded inside the file |
+| **Executable Signature** | `MZ`, `PE`, `@echo`, or `powershell` bytes inside the file |
+| **Stego Tool Signatures** | Strings from `steghide`, `OutGuess`, `F5`, `JSteg` |
+| **String Analysis** | Keywords like `password=`, `BEGIN PGP`, `base64:`, `encrypted:` |
+| **Steghide Integration** | Calls `steghide info <file>` and checks for embedded data |
+| **LSB Analysis** | LSB bit distribution in PNG/BMP pixels (flags if ratio deviates > 0.08) |
 
 ---
 
 ## Scoring
 
-Each algorithm contributes a weighted score. A total ≥ 50 triggers a
-**STEGO DETECTED** verdict.
+Each triggered check adds a weighted score. Total is capped at 100.
 
 | Finding | Score |
-|---------|-------|
-| RAR signature inside file | +50 |
-| Steghide embedded data | +50 |
-| ZIP signature inside file | +45 |
-| Executable signature (MZ, PE) | +40 |
-| Stego-tool name in file | +35 |
+|---|---|
+| RAR signature detected | +50 |
+| Steghide embedded data confirmed | +50 |
+| ZIP signature detected | +45 |
+| Executable signature detected | +40 |
+| Stego tool string found | +35 |
 | Suspicious appended data | +25 |
-| LSB distribution anomaly | +25 |
+| LSB anomaly | +25 |
 | Stego-related strings (≥ 2) | +20 |
-| Entropy above format threshold | +10 |
+| High entropy | +10 |
 
-Scores are capped at 100.
+**Verdict:** score ≥ 50 → 🔴 **STEGO DETECTED** &nbsp;|&nbsp; score < 50 → 🟢 **CLEAN**
 
 ---
 
-## Running the tests
+## Supported File Types
+
+| Type | Formats | Checks Applied |
+|---|---|---|
+| Images (JPEG) | `.jpg` `.jpeg` | Entropy, EOF, RAR, ZIP, EXE, Stego tools, Strings, Steghide |
+| Images (lossless) | `.png` `.bmp` | Entropy, EOF, RAR, ZIP, EXE, Stego tools, Strings, LSB |
+| Images (other) | `.gif` | Entropy, RAR, ZIP, EXE, Stego tools, Strings |
+| Audio | `.wav` `.mp3` `.flac` `.ogg` | Entropy, RAR, ZIP, EXE, Stego tools, Strings (+ Steghide for WAV) |
+| Video | `.mp4` `.avi` `.mkv` `.mov` | Entropy, RAR, ZIP, EXE, Stego tools, Strings |
+| Archives | `.rar` `.zip` `.7z` | Entropy, RAR, ZIP, EXE, Stego tools, Strings |
+
+---
+
+## Installation
+
+**Requirements:** Python 3.7+, tkinter (included with Python on Windows/macOS)
 
 ```bash
-pytest tests/ -v
+git clone https://github.com/shaharyar0306/steganalysis-tool.git
+cd steganalysis-tool
+pip install -r requirements.txt
+```
+
+**On Linux**, install tkinter separately if needed:
+```bash
+sudo apt install python3-tk
+```
+
+**Steghide** (optional — enables the steghide detection check):
+```bash
+# Ubuntu/Debian
+sudo apt install steghide
+
+# Windows: download from https://steghide.sourceforge.net
 ```
 
 ---
 
-## Contributing
+## Usage
 
-1. Fork the repository.
-2. Create a feature branch: `git checkout -b feature/my-algorithm`
-3. Add tests in `tests/`.
-4. Open a pull request against `main`.
+### GUI Mode
+```bash
+python steganalyzer.py
+```
 
-Please keep the core `StegDetector` class free of GUI dependencies so it remains
-importable in headless environments.
+1. Click **📂 Browse** and select any file
+2. The tool shows file info and which algorithms will run
+3. Click **🔍 Analyze File** and watch the progress bar
+4. Read the verdict and findings in the results panel
+5. Reports are automatically saved to the `reports/` folder
+
+### Command Line Mode
+```bash
+python steganalyzer.py path/to/file.jpg
+```
+
+Output:
+```
+🔴 STEGO DETECTED - Score: 75/100
+# or
+🟢 CLEAN - Score: 15/100
+```
+
+---
+
+## Output Reports
+
+After every analysis two report files are saved to `reports/`:
+
+**`filename_YYYYMMDD_HHMMSS_report.txt`**
+```
+======================================================================
+STEGANALYSIS REPORT
+======================================================================
+File:     suspicious.jpg
+Path:     /home/user/suspicious.jpg
+Size:     155,589 bytes
+Type:     .JPEG
+Entropy:  7.9988
+Score:    75/100
+Verdict:  STEGO DETECTED
+Time:     2026-04-18 14:30:25
+MD5:      73eff2a5064fcd5da9614813bb13697b
+SHA256:   5f665c657a6779ad89fdee31e17635...
+```
+
+**`filename_YYYYMMDD_HHMMSS_report.html`** — same information in a dark-themed HTML page with colour-coded verdict and findings list.
+
+---
+
+## GUI Overview
+
+```
+┌─────────────────────────────────────────────┐
+│  🔍 Steganalysis Detection Tool             │
+│  Detect hidden data in images, audio...     │
+├─────────────────────────────────────────────┤
+│  Select File: [________________] [📂 Browse]│
+│                                             │
+│  📁 File: photo.jpg                         │
+│  📊 Size: 155,589 bytes  (151.94 KB)        │
+│  🔖 Type: JPEG Image                        │
+│                                             │
+│  🛠️ Algorithms: Entropy • EOF • LSB • ...   │
+│                                             │
+│         [ 🔍 Analyze File ]                 │
+│  [████████████████░░░░░░░░░░] 60%           │
+│                                             │
+│  ====== STEGANALYSIS RESULTS ======         │
+│  File: photo.jpg                            │
+│  Score: 75/100                              │
+│  🔴 VERDICT: STEGO DETECTED                 │
+└─────────────────────────────────────────────┘
+```
+
+---
+
+## Code Structure
+
+```
+steganalyzer.py
+│
+├── class StegDetector
+│   ├── calculate_entropy()       Shannon entropy calculation
+│   ├── extract_strings()         Printable ASCII string extraction
+│   ├── check_steghide()          steghide subprocess integration
+│   ├── get_file_hashes()         MD5 and SHA256 hash calculation
+│   ├── analyze_appended_data()   EOF / appended data detection
+│   └── analyze()                 Main analysis — runs all checks
+│
+├── class SteganalysisGUI
+│   ├── browse_file()             File picker dialog
+│   ├── update_file_info()        Shows file name, size, type
+│   ├── show_algorithms_for_type() Shows which checks will run
+│   ├── start_analysis()          Spawns background thread
+│   ├── run_analysis()            Calls StegDetector.analyze()
+│   ├── display_results()         Renders verdict in the GUI
+│   └── generate_reports()        Writes .txt and .html to reports/
+│
+└── main()                        Launches the Tkinter window
+```
+
+---
+
+## Project Files
+
+| File | Description |
+|---|---|
+| `steganalyzer.py` | Main script — GUI + all detection logic |
+| `requirements.txt` | `Pillow` (for LSB analysis) |
+| `LICENSE` | MIT |
+| `README.md` | This file |
+| `reports/` | Auto-created — stores generated reports |
+| `screenshots/` | Tool screenshots |
 
 ---
 
@@ -157,9 +207,14 @@ importable in headless environments.
 
 MIT — see [LICENSE](LICENSE).
 
+Copyright (c) 2026 Shaharyar
+
 ---
 
-## Disclaimer
+## Author
 
-This tool is intended for **legitimate digital forensics, CTF challenges, and
-security research** only. Do not use it to conceal or extract unlawful content.
+**Shaharyar** · [@shaharyar0306](https://github.com/shaharyar0306)
+
+---
+
+*Made with Python and Tkinter for digital forensics and CTF challenges.*
